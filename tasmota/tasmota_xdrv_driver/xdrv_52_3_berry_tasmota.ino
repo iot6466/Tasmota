@@ -23,6 +23,7 @@
 #include <berry.h>
 #include <Wire.h>
 #include "esp_wifi.h"
+#include "esp_sleep.h"
 
 const uint32_t BERRY_MAX_LOGS = 16;   // max number of print output recorded when outside of REPL, used to avoid infinite grow of logs
 const uint32_t BERRY_MAX_REPL_LOGS = 50;   // max number of print output recorded when inside REPL
@@ -61,11 +62,13 @@ const uint32_t BERRY_MAX_REPL_LOGS = 50;   // max number of print output recorde
  * tasmota.millis([delay:int]) -> int
  * tasmota.time_reached(timer:int) -> bool
  * tasmota.yield() -> nil
+ * tasmota.wakeup_cause() -> int
  *
  * tasmota.get_light([index:int = 0]) -> map
  * tasmota.get_power([index:int = 0]) -> bool
  * tasmota.set_power(idx:int, power:bool) -> bool or nil
  * tasmota.set_light(idx:int, values:map) -> map
+ *
  *
 \*********************************************************************************************/
 extern "C" {
@@ -203,6 +206,50 @@ extern "C" {
   int32_t l_rtc_utc(struct bvm *vm) {
     be_pushint(vm, Rtc.utc_time);
     be_return(vm);
+  }
+
+  // Berry: tasmota.rtc_utc_ms([b:bytes]) -> int64 or bytes or nil
+  //
+  // UTC time in milliseconds since 1970-01-01, monotonic, see RtcUtcMillis()
+  // - without argument: returns a new int64 instance, or nil if int64 is not compiled
+  // - with a bytes() argument: resizes it to 8 bytes, fills it with the value as
+  //   little endian uint64 and returns it. Read it with `b.get(0,4)` and `b.get(4,4)`.
+  //   No allocation if the buffer has already room for 8 bytes, e.g. a reused `bytes(8)`.
+  // int64 instances are immutable by convention, so they are never filled in place.
+  int32_t l_rtc_utc_ms(struct bvm *vm);
+  int32_t l_rtc_utc_ms(struct bvm *vm) {
+    int32_t top = be_top(vm); // Get the number of arguments
+    uint64_t utc_ms = RtcUtcMillis();
+    if (top >= 1 && !be_isnil(vm, 1)) {
+      if (!be_isbytes(vm, 1)) {
+        be_raise(vm, kTypeError, "bytes expected");
+      }
+      // b.resize(8), allocates only if the buffer is too small
+      be_getmember(vm, 1, "resize");
+      be_pushvalue(vm, 1);
+      be_pushint(vm, 8);
+      be_call(vm, 2);
+      be_pop(vm, 3);
+      size_t len = 0;
+      uint8_t * buf = (uint8_t*) be_tobytes(vm, 1, &len);
+      if (buf == nullptr || len < 8) {
+        be_raise(vm, "internal_error", "cannot resize buffer");
+      }
+      for (uint32_t i = 0; i < 8; i++) {
+        buf[i] = (uint8_t)(utc_ms >> (8 * i));
+      }
+      be_pushvalue(vm, 1);
+      be_return(vm);
+    }
+    if (be_getglobal(vm, "int64")) {
+      be_getmember(vm, -1, "fromu32");
+      be_pushint(vm, (int32_t)(uint32_t)utc_ms);
+      be_pushint(vm, (int32_t)(uint32_t)(utc_ms >> 32));
+      be_call(vm, 2);         // int64.fromu32(low, high)
+      be_pop(vm, 2);
+      be_return(vm);
+    }
+    be_return_nil(vm);
   }
 
   // Berry: tasmota.memory() -> map
@@ -1097,6 +1144,23 @@ extern "C" {
     }
   }
 }
+
+
+/*********************************************************************************************\
+ * Native functions mapped to Berry functions
+ *
+ * wakeup_cause() -> int
+ *
+\*********************************************************************************************/
+extern "C" {
+  int32_t l_wakeup_cause(struct bvm *vm);
+  int32_t l_wakeup_cause(struct bvm *vm) {
+    be_pushint(vm, (bint) esp_sleep_get_wakeup_cause());
+    be_return(vm);
+  }
+}
+
+
 
 /*********************************************************************************************\
  * Tasmota Log Reader

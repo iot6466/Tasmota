@@ -562,6 +562,9 @@
   #define USE_SUNRISE                            // Add support for Sunrise and sunset tools (+16k)
     #define SUNRISE_DAWN_ANGLE DAWN_NORMAL       // Select desired Dawn Angle from (DAWN_NORMAL, DAWN_CIVIL, DAWN_NAUTIC, DAWN_ASTRONOMIC)
 
+// -- Location ------------------------------------
+#define USE_LOCATION                             // Add support for device location (Latitude/Longitude/Altitude) and local pose (x/y/z + rotation) (+2k code)
+
 // -- Ping ----------------------------------------
 //  #define USE_PING                                 // Enable Ping command (+2k code)
 
@@ -762,6 +765,7 @@
 //  #define USE_AHT1x                              // [I2cDriver43] Enable AHT10/15 humidity and temperature sensor (I2C address 0x38, 0x39) (+0k8 code)
 //  #define USE_AHT2x                              // [I2cDriver43] Enable AHT20/AM2301B instead of AHT1x humidity and temperature sensor (I2C address 0x38) (+0k8 code)
 //  #define USE_AHT3x                              // [I2cDriver43] Enable AHT30 humidity and temperature sensor (I2C address 0x38) (+0k8 code)
+//    #define USE_AHT_DIAG                         //   Add AHT20/AHT30 diagnostics (AHT2XDiag) to the sensor JSON
 //  #define USE_WEMOS_MOTOR_V1                     // [I2cDriver44] Enable Wemos motor driver V1 (I2C addresses 0x2D - 0x30) (+0k7 code)
 //    #define WEMOS_MOTOR_V1_ADDR  0x30            // Default I2C address 0x30
 //    #define WEMOS_MOTOR_V1_FREQ  1000            // Default frequency
@@ -897,6 +901,13 @@
 // -- Universal Display Driver ---------------------------------
 // #define USE_UNIVERSAL_DISPLAY                   // New universal display driver for both I2C and SPI
     #define MAX_TOUCH_BUTTONS 16                 // Virtual touch buttons
+//  #define UDISPLAY_RGB_NO_GUARD                // RGB panel: disable the DMA sync guard that fixes the image shift after flash writes
+//  #define UDISPLAY_RGB_GUARD_IDF_RESTART       // RGB panel ESP32-S3: guard always uses the IDF DMA restart (with LCD FIFO reset)
+//  #define UDISPLAY_RGB_GUARD_EOF_READ          // RGB panel ESP32-S3: keep the IDF GDMA EOF mode (last data read from memory)
+//  #define UDISPLAY_RGB_GUARD_THR_US 6          // RGB panel guard: large shift threshold in us, detected over 4 frames
+//  #define UDISPLAY_RGB_GUARD_FINE_THR_PX 36    // RGB panel guard: smallest shift threshold in pixels, detected over 32 frames
+//  #define UDISPLAY_RGB_GUARD_FINE_THR_NS 1000  // RGB panel guard: floor of the smallest shift threshold in ns
+//  #define UDISPLAY_RGB_GUARD_DEFER_MAX_S 10    // RGB panel guard: max wait in seconds for a quiet frame buffer before a confirm restart
 
 // -- SPI sensors ---------------------------------
 //#define USE_SPI                                  // Hardware SPI using GPIO12(MISO), GPIO13(MOSI) and GPIO14(CLK) in addition to two user selectable GPIOs(CS and DC)
@@ -1289,6 +1300,9 @@
   #define USE_BERRY_PYTHON_COMPAT                // Enable by default `import python_compat`
   #define USE_BERRY_TIMEOUT             4000     // Timeout in ms, will raise an exception if running time exceeds this timeout
   #define USE_BERRY_PSRAM                        // Allocate Berry memory in PSRAM if PSRAM is connected - this might be slightly slower but leaves main memory intact
+  #ifndef BERRY_MAX_BYTES_SIZE_PSRAM
+    #define BERRY_MAX_BYTES_SIZE_PSRAM  (1024 * 1024) // Max size in bytes for Berry bytes() objects when PSRAM is available
+  #endif
   #define USE_BERRY_IRAM                         // Allocate some data structures in IRAM (which is usually unused) when possible and if no PSRAM is available
   #define USE_BERRY_FAST_LOOP_SLEEP_MS  5        // Minimum time in milliseconds to before calling again `tasmota.fast_loop()`, a smaller value will consume more CPU (min 1ms)
   // #define USE_BERRY_DEBUG                        // Compile Berry bytecode with line number information, makes exceptions easier to debug. Adds +8% of memory consumption for compiled code
